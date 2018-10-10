@@ -1,8 +1,15 @@
 #pragma once
 
 #include "ofMain.h"
-#include "ofxAruco.h"
-#include "highlyreliablemarkers.h"
+
+#include <opencv2/aruco.hpp>
+#include <opencv2/calib3d.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+
+//addons
+#include "ofxCv.h"
+#include "ofxOpenCv.h"
 
 class ofApp : public ofBaseApp{
 
@@ -20,12 +27,12 @@ class ofApp : public ofBaseApp{
 		void windowResized(int w, int h);
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
-		
+
 		ofVideoGrabber grabber;
 
 		ofBaseVideoDraws * video;
 
-		ofxAruco aruco;
+		ofxAruco cv::aruco;
 		bool showMarkers;
 		//bool showBoard;
 		//bool showBoardImage;

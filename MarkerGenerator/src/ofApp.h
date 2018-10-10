@@ -1,8 +1,15 @@
 #pragma once
 
 #include "ofMain.h"
-#include "ofxAruco.h"
-#include "highlyreliablemarkers.h"
+
+#include <opencv2/aruco.hpp>
+#include <opencv2/calib3d.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+
+//addons
+#include "ofxCv.h"
+#include "ofxOpenCv.h"
 
 class ofApp : public ofBaseApp{
 
@@ -21,16 +28,17 @@ class ofApp : public ofBaseApp{
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
 
-		void createMarker(unsigned int dictSize, unsigned int n);
-		void createMarkerImages(aruco::Dictionary& dictionary);
+		ofImage createMarker(int dicId, int id, int bBits);
 
 private:
-	aruco::Dictionary dictionary;
+	int mMakerId;
+	int mBorderBits;
+	int mDictionaryId;
 
-	int dictionarySize{ 1024 };
-	int markerResolution{ 6 };
-	int tau;
+	bool mGenerateTags;
 
-	int state{ 0 };
-	bool stateDrawn{ false };
+	std::vector<std::string> mDictionaryTags;
+	std::vector<int> mDictionaryMax;
+
+	ofImage mVidImg;
 };

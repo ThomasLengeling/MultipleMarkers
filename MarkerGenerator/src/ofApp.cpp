@@ -1,153 +1,135 @@
 #include "ofApp.h"
-#include "ofxCv.h"
-#include "ofBitmapFont.h"
-
-
-typedef std::vector< int > Word;
-
-class MarkerGenerator {
-
-private:
-	int _nTransitions;
-	std::vector< int > _transitionsWeigth;
-	int _totalWeigth;
-	int _n;
-
-public:
-	MarkerGenerator(int n) {
-		_n = n;
-		_nTransitions = n - 1;
-		_transitionsWeigth.resize(_nTransitions);
-		_totalWeigth = 0;
-		for (int i = 0; i < _nTransitions; i++) {
-			_transitionsWeigth[i] = i;
-			_totalWeigth += i;
-		}
-	}
-
-	aruco::MarkerCode generateMarker() {
-
-		aruco::MarkerCode emptyMarker(_n);
-
-		for (int w = 0; w < _n; w++) {
-			Word currentWord(_n, 0);
-			int randomNum = rand() % _totalWeigth;
-			int currentNTransitions = _nTransitions - 1;
-			for (int k = 0; k < _nTransitions; k++) {
-				if (_transitionsWeigth[k] > randomNum) {
-					currentNTransitions = k;
-					break;
-				}
-			}
-			std::vector< int > transitionsIndexes(_nTransitions);
-			for (int i = 0; i < _nTransitions; i++)
-				transitionsIndexes[i] = i;
-			std::random_shuffle(transitionsIndexes.begin(), transitionsIndexes.end());
-
-			std::vector< int > selectedIndexes;
-			for (int k = 0; k < currentNTransitions; k++)
-				selectedIndexes.push_back(transitionsIndexes[k]);
-			std::sort(selectedIndexes.begin(), selectedIndexes.end());
-			int currBit = rand() % 2;
-			int currSelectedIndexesIdx = 0;
-			for (int k = 0; k < _n; k++) {
-				currentWord[k] = currBit;
-				if (currSelectedIndexesIdx < selectedIndexes.size() && k == selectedIndexes[currSelectedIndexesIdx]) {
-					currBit = 1 - currBit;
-					currSelectedIndexesIdx++;
-				}
-			}
-
-			for (int k = 0; k < _n; k++)
-				emptyMarker.set(w * _n + k, bool(currentWord[k]), false);
-		}
-
-		return emptyMarker;
-	}
-};
-
 
 //--------------------------------------------------------------
 void ofApp::setup(){
 	ofSetWindowTitle("Highly Reliable Marker Creator");
 	ofEnableAlphaBlending();
 
+	mMakerId = 0;
+	mBorderBits = 1;
 
+
+	mDictionaryTags.push_back("DICT_4X4_50");
+	mDictionaryTags.push_back("DICT_4X4_100");
+	mDictionaryTags.push_back("DICT_4X4_250");
+	mDictionaryTags.push_back("DICT_4X4_1000");
+	mDictionaryTags.push_back("DICT_5X5_50");
+	mDictionaryTags.push_back("DICT_5X5_100");
+	mDictionaryTags.push_back("DICT_5X5_250");
+	mDictionaryTags.push_back("DICT_5X5_1000");
+	mDictionaryTags.push_back("DICT_6X6_50");
+	mDictionaryTags.push_back("DICT_6X6_100");
+	mDictionaryTags.push_back("DICT_6X6_250");
+	mDictionaryTags.push_back("DICT_6X6_1000");
+	mDictionaryTags.push_back("DICT_7X7_50");
+	mDictionaryTags.push_back("DICT_7X7_100");
+	mDictionaryTags.push_back("DICT_7X7_250");
+	mDictionaryTags.push_back("DICT_7X7_1000");
+
+	mDictionaryMax.push_back(50);
+	mDictionaryMax.push_back(100);
+	mDictionaryMax.push_back(250);
+	mDictionaryMax.push_back(1000);
+	mDictionaryMax.push_back(50);
+	mDictionaryMax.push_back(100);
+	mDictionaryMax.push_back(250);
+	mDictionaryMax.push_back(1000);
+	mDictionaryMax.push_back(50);
+	mDictionaryMax.push_back(100);
+	mDictionaryMax.push_back(250);
+	mDictionaryMax.push_back(1000);
+	mDictionaryMax.push_back(50);
+	mDictionaryMax.push_back(100);
+	mDictionaryMax.push_back(250);
+	mDictionaryMax.push_back(1000);
+
+	mVidImg = createMarker(mDictionaryId, mMakerId, mBorderBits);
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
-	ofBackground(40);
-
-	if (state == 1 && stateDrawn)
+	ofBackground(200);
 	{
-		createMarker(dictionarySize, markerResolution);
-		createMarkerImages(dictionary);
-		state = 2;
+		if(mGenerateTags){
+			for(int i = 0; i < mDictionaryMax.at(mDictionaryId); i++){
+				ofImage img = createMarker(mDictionaryId, i, mBorderBits);
+				mVidImg.save(mDictionaryTags.at(mDictionaryId)+"/"+to_string(mDictionaryId)+"_"+to_string(i)+".png");
+			}
+			mGenerateTags = false;
+			std::cout<<"Done Generating "<<mDictionaryTags.at(mDictionaryId)<<std::endl;
+		}
 	}
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-	ofSetColor(200);
-	if (state == 0)
-	{
-		ofDrawBitmapString("Choose your parameters and press 'g' to generate marker", 15, 30);
-		ofDrawBitmapString("Number of markers : " + ofToString(dictionarySize) + "   -/+ (i/o)", 15, 60);
-		ofDrawBitmapString("Marker Resolution in px : " + ofToString(markerResolution) + "   -/+ (k/l)", 15, 80);
+	ofSetColor(30);
+	ofDrawBitmapString("Id: "+to_string(mMakerId), 15, 15);
+	ofDrawBitmapString("Dictionary Id: "+to_string(mDictionaryId) +" "+mDictionaryTags.at(mDictionaryId), 15, 35);
 
-		int w = 300;
-		ofPushMatrix();
-		ofTranslate((ofGetWidth() - w) / 2, 120);
-		ofSetColor(255);
-		ofDrawRectangle(0, 0, w, w);
-		int d = w / (markerResolution + 4);
-		ofTranslate(d, d);
-		ofSetColor(0);
-		ofDrawRectangle(0, 0, w - 2 * d, w - 2 * d);
-		ofTranslate(d, d);
 
-		for (int x = 0; x < markerResolution; x++)
-		{
-			for (int y = 0; y < markerResolution; y++)
-			{
-				if ((x%5 + y%2) % 3) ofSetColor(0);
-				else ofSetColor(255);
-				ofDrawRectangle(d*x, d*y, d, d);
-			}
-		}
-		ofPopMatrix();
-	}
-	else if(state == 1){
-		ofDrawBitmapString("Markers are beeing created. This could take a while.", 15, 80);
-		ofDrawBitmapString("Have a look at the console window to see the progess.", 15, 100);
-		stateDrawn = true;
-	}
-	else {
-		ofDrawBitmapString("Marker creation has finished!", 15, 80);
-		ofDrawBitmapString("The dictionary is 'marker.xml' and the images can be", 15, 100);
-		ofDrawBitmapString("found in marker/", 15, 120);
-	}
+	ofSetColor(255);
+	mVidImg.draw(50, 50);
 }
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-	if (key == 'i') {
-		dictionarySize--;
-		if (dictionarySize == 0) dictionarySize++;
+	if(key == '1'){
+		mMakerId++;
+		if(mMakerId >= mDictionaryMax.at(mDictionaryId)){
+			mMakerId =49;
+		}
+		mVidImg =	createMarker(mDictionaryId, mMakerId, mBorderBits);
 	}
-	if (key == 'o') {
-		dictionarySize++;
+	if(key == '2'){
+		mMakerId--;
+		if(mMakerId == -1){
+			mMakerId = 0;
+		}
+		mVidImg =	createMarker(mDictionaryId, mMakerId, mBorderBits);
 	}
-	if (key == 'k') {
-		markerResolution--;
-		if (markerResolution == 1) markerResolution++;
+
+	if(key == 'q'){
+		mBorderBits++;
+		if(mBorderBits >=  5){
+			mBorderBits =5;
+		}
+		mVidImg =	createMarker(mDictionaryId, mMakerId, mBorderBits);
 	}
-		
-	if (key == 'l') markerResolution++;
-	if (key == 'g') {
-		state = 1;
+
+	if(key == 'w'){
+		mBorderBits--;
+		if(mBorderBits <= 1){
+			mBorderBits =1;
+		}
+		mVidImg =	createMarker(mDictionaryId, mMakerId, mBorderBits);
 	}
+
+	if(key == 'a'){
+		mDictionaryId++;
+		if(mDictionaryId >=  15){
+			mDictionaryId = 15;
+		}
+		mVidImg =	createMarker(mDictionaryId, mMakerId, mBorderBits);
+	}
+
+	if(key == 's'){
+		mDictionaryId--;
+		if(mDictionaryId <= 0){
+			mDictionaryId =0;
+		}
+		 mVidImg =	createMarker(mDictionaryId, mMakerId, mBorderBits);
+	}
+
+
+	if(key == 'p'){
+		mVidImg.save(mDictionaryTags.at(mDictionaryId)+"_"+to_string(mMakerId)+".png");
+	}
+
+	if(key == 'g'){
+		mGenerateTags = true;
+	}
+
 }
 
 //--------------------------------------------------------------
@@ -185,100 +167,38 @@ void ofApp::gotMessage(ofMessage msg){
 
 }
 
-void ofApp::createMarker(unsigned int dictSize, unsigned int n)
+ofImage ofApp::createMarker(int dicId, int id, int bBits)
 {
-	aruco::Dictionary D;
 
-	unsigned int tau = 2 * ((4 * ((n * n) / 4)) / 3);
-	std::cout << "Tau: " << tau << std::endl;
 
-	srand(time(NULL));
+	/*
+	DICT_4X4_50=0, DICT_4X4_100=1, DICT_4X4_250=2,"
+        "DICT_4X4_1000=3, DICT_5X5_50=4, DICT_5X5_100=5, DICT_5X5_250=6, DICT_5X5_1000=7, "
+        "DICT_6X6_50=8, DICT_6X6_100=9, DICT_6X6_250=10, DICT_6X6_1000=11, DICT_7X7_50=12,"
+        "DICT_7X7_100=13, DICT_7X7_250=14, DICT_7X7_1000=15, DICT_ARUCO_ORIGINAL =
+		*/
 
-	MarkerGenerator MG(n);
+	int dictionaryId = dicId;
+	int markerId =  id;
+	int borderBits = bBits;
+	int markerSize = 400;
+	bool showImage = false;
 
-	const int MAX_UNPRODUCTIVE_ITERATIONS = 100000;
-	int currentMaxUnproductiveIterations = MAX_UNPRODUCTIVE_ITERATIONS;
+	cv::Ptr<cv::aruco::Dictionary> dic =
+			cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME(dictionaryId));
 
-	unsigned int countUnproductive = 0;
-	while (D.size() < dictSize) {
+	cv::Mat markerImg;
+	cv::Mat outputMat;
+	ofImage img;
 
-		aruco::MarkerCode candidate;
-		candidate = MG.generateMarker();
+	cv::aruco::drawMarker(dic, markerId, markerSize, markerImg, borderBits);
 
-		if (candidate.selfDistance() >= tau && D.distance(candidate) >= tau) {
-			D.push_back(candidate);
-			std::cout << "Accepted Marker " << D.size() << "/" << dictSize << std::endl;
-			countUnproductive = 0;
-		} else {
-			countUnproductive++;
-			if (countUnproductive == currentMaxUnproductiveIterations) {
-				tau--;
-				countUnproductive = 0;
-				std::cout << "Reducing Tau to: " << tau << std::endl;
-				if (tau == 0) {
-					std::cerr << "Error: Tau=0. Small marker size for too high number of markers. Stop" << std::endl;
-					break;
-				}
-				if (D.size() >= 2)
-					currentMaxUnproductiveIterations = MAX_UNPRODUCTIVE_ITERATIONS;
-				else
-					currentMaxUnproductiveIterations = MAX_UNPRODUCTIVE_ITERATIONS / 15;
-			}
-		}
-	}
-
-	D.tau0 = tau;
-	D.toFile("data/marker.xml");
-
-	dictionary = D;
+	// create video output
+  markerImg.copyTo(outputMat);
+  ofxCv::toOf(outputMat, img.getPixels());
+  img.update();
+	return img;
 }
-
-void ofApp::createMarkerImages(aruco::Dictionary & dictionary)
-{
-	int nMarkers = dictionary.size();
-	int markerSize = dictionary[0].n();
-	int tau0 = dictionary.tau0;
-
-	int pixelSize = 75;
-
-	ofFbo fbo;
-	int markerDim = pixelSize * (markerSize + 4);
-	fbo.allocate(markerDim, markerDim);
-
-	for (unsigned int i = 0; i < nMarkers; i++) {
-		fbo.begin();
-		ofClear(255);
-		ofDrawRectangle(0, 0, fbo.getWidth(), fbo.getHeight());
-		ofPushMatrix();
-		ofTranslate(pixelSize, pixelSize);
-		ofSetColor(0);
-		int dimRect = pixelSize * (markerSize + 2);
-		ofDrawRectangle(0, 0, dimRect, dimRect);
-		ofTranslate(pixelSize, pixelSize);
-		for (int x = 0; x < markerSize; x++)
-		{
-			for (int y = 0; y < markerSize; y++)
-			{
-				if (dictionary[i].get(y*markerSize + x))
-					ofSetColor(255);
-				else
-					ofSetColor(0);
-				ofDrawRectangle(x*pixelSize, y*pixelSize, pixelSize, pixelSize);
-			}
-		}
-		ofPopMatrix();
-		fbo.end();
-
-		//save fbo to file
-		ofPixels p;
-		fbo.readToPixels(p);
-		ofImage img;
-		img.setFromPixels(p);
-		img.save("marker/marker_" + ofToString(i) + ".png");
-	}
-
-}
-
 //--------------------------------------------------------------
 void ofApp::dragEvent(ofDragInfo dragInfo){
 
